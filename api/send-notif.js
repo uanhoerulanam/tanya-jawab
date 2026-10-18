@@ -14,7 +14,7 @@ export default async function handler(req, res) {
       },
       body: JSON.stringify({
         app_id: "69f136f5-580e-49db-8573-83fbbd2099d1",
-        included_segments: ["Subscribed Users"],
+        included_segments: ["Total Subscriptions", "Subscribed Users"],
         headings: { "en": judul },
         contents: { "en": isi },
         url: "https://ankraixmotionruangdengar.vercel.app"
