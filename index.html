@@ -160,7 +160,6 @@
       }
     });
 
-    // Fungsi Pengiriman Push Notification via Vercel Backend
     async function kirimNotifikasi(judul, isi) {
       try {
         await fetch("/api/send-notif", {
@@ -188,8 +187,7 @@
           createdAt: serverTimestamp()
         });
 
-        // Menunggu pemicu notifikasi selesai diproses
-        await kirimNotifikasi("📩 Pesan Baru di Ruang Dengar!", `${nama}: ${pesan}`);
+        kirimNotifikasi("📩 Pesan Baru di Ruang Dengar!", `${nama}: ${pesan}`);
 
         pesanInput.value = '';
         alert("Pesan berhasil terkirim!");
@@ -269,7 +267,7 @@
             balasan: balasanBaru.trim()
           });
 
-          await kirimNotifikasi("👑 Admin Membalas Pesan!", `Balasan untuk ${namaPengirim}: ${balasanBaru.trim()}`);
+          kirimNotifikasi("👑 Admin Membalas Pesan!", `Balasan untuk ${namaPengirim}: ${balasanBaru.trim()}`);
         } catch (err) {
           alert("Gagal menyimpan balasan.");
         }
