@@ -5,6 +5,18 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>ankraixmotion | Ruang Dengar</title>
   <script src="https://cdn.tailwindcss.com"></script>
+
+  <!-- OneSignal Push Notification SDK -->
+  <script src="https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.page.js" defer></script>
+  <script>
+    window.OneSignalDeferred = window.OneSignalDeferred || [];
+    OneSignalDeferred.push(async function(OneSignal) {
+      await OneSignal.init({
+        appId: "69f136f5-580e-49db-8573-83fbbd2099d1",
+      });
+    });
+  </script>
+
   <style>
     body {
       background-color: #0b0c10;
@@ -100,7 +112,6 @@
     import { getFirestore, collection, addDoc, onSnapshot, query, orderBy, serverTimestamp, doc, updateDoc, deleteDoc } 
       from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
-    // Configuration Firebase milik ankraixmotion
     const firebaseConfig = {
       apiKey: "AIzaSyDuG7LPdnsSkMYhyQ4aRJIPGtN3WVtPWDk",
       authDomain: "ankraixmotionruangdengar.firebaseapp.com",
@@ -111,12 +122,11 @@
       measurementId: "G-MNJYKTS7MY"
     };
 
-    // Inisialisasi
     const app = initializeApp(firebaseConfig);
     const db = getFirestore(app);
 
     let isAdmin = false;
-    const ADMIN_PIN = "1234"; // PIN Admin untuk menjawab/menghapus pesan
+    const ADMIN_PIN = "1234";
 
     const form = document.getElementById('pesanForm');
     const namaInput = document.getElementById('namaInput');
@@ -125,7 +135,6 @@
     const btnToggleAdmin = document.getElementById('btnToggleAdmin');
     const adminStatus = document.getElementById('adminStatus');
 
-    // Toggle Admin Mode
     btnToggleAdmin.addEventListener('click', () => {
       if (!isAdmin) {
         const pin = prompt("Masukkan PIN Admin:");
@@ -148,7 +157,6 @@
       }
     });
 
-    // Kirim Pesan
     form.addEventListener('submit', async (e) => {
       e.preventDefault();
       const nama = namaInput.value.trim() || "Anonim";
@@ -167,11 +175,10 @@
         pesanInput.value = '';
       } catch (err) {
         console.error("Gagal mengirim pesan:", err);
-        alert("Gagal mengirim pesan. Pastikan koneksi lancar.");
+        alert("Gagal mengirim pesan.");
       }
     });
 
-    // Listener Firestore Realtime
     let currentSnapshot = null;
     const q = query(collection(db, "pesan_masuk"), orderBy("createdAt", "desc"));
     
@@ -205,7 +212,6 @@
           <p class="text-gray-300 text-sm whitespace-pre-line leading-relaxed">${escapeHtml(data.pesan)}</p>
         `;
 
-        // Tampilkan Balasan Admin Jika Ada
         if (data.balasan) {
           html += `
             <div class="mt-3 pt-3 border-t border-purple-500/20 bg-purple-950/20 -mx-4 -mb-4 p-3 rounded-b-xl">
@@ -217,7 +223,6 @@
           `;
         }
 
-        // Kontrol Khusus Admin (Tombol Balas & Hapus)
         if (isAdmin) {
           html += `
             <div class="mt-3 pt-2 border-t border-gray-800 flex justify-end gap-2 text-xs">
@@ -236,7 +241,6 @@
       });
     }
 
-    // Fungsi Balas Pesan (Admin)
     window.balasPesan = async (id, balasanLama) => {
       const balasanBaru = prompt("Masukkan jawaban/balasan kamu:", balasanLama);
       if (balasanBaru !== null) {
@@ -250,7 +254,6 @@
       }
     };
 
-    // Fungsi Hapus Pesan (Admin)
     window.hapusPesan = async (id) => {
       if (confirm("Yakin ingin menghapus pesan ini?")) {
         try {
