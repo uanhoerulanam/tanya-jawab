@@ -14,6 +14,8 @@
       await OneSignal.init({
         appId: "69f136f5-580e-49db-8573-83fbbd2099d1",
       });
+      // Meminta izin notifikasi secara otomatis
+      OneSignal.Notifications.requestPermission();
     });
   </script>
 
@@ -165,6 +167,7 @@
       if (!pesan) return;
 
       try {
+        // 1. Simpan pesan ke Firestore Database
         await addDoc(collection(db, "pesan_masuk"), {
           nama: nama,
           pesan: pesan,
@@ -172,10 +175,25 @@
           createdAt: serverTimestamp()
         });
 
+        // 2. Memicu pengiriman push notification via OneSignal API
+        fetch("https://onesignal.com/api/v1/notifications", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json; charset=utf-8"
+          },
+          body: JSON.stringify({
+            app_id: "69f136f5-580e-49db-8573-83fbbd2099d1",
+            included_segments: ["All"],
+            headings: { "en": "📩 Pesan Baru di Ruang Dengar!" },
+            contents: { "en": `${nama}: ${pesan}` }
+          })
+        }).catch(err => console.log("Gagal memicu notifikasi:", err));
+
         pesanInput.value = '';
+        alert("Pesan berhasil terkirim!");
       } catch (err) {
         console.error("Gagal mengirim pesan:", err);
-        alert("Gagal mengirim pesan.");
+        alert("Gagal mengirim pesan. Coba cek koneksi internetmu.");
       }
     });
 
