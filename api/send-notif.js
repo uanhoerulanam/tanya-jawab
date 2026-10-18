@@ -27,7 +27,8 @@ module.exports = async (req, res) => {
         included_segments: ["Subscribed Users"],
         headings: { "en": judul },
         contents: { "en": isi },
-        url: "https://ruangdengar-five.vercel.app"
+        // URL SUDAH DIGANTI KE YANG BARU
+        url: "https://maungomongapasibyuan.vercel.app" 
       })
     });
 
