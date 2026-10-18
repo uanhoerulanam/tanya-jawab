@@ -163,13 +163,13 @@
       }
     });
 
-    // Fungsi Pengiriman Push Notification
+    // Fungsi Pengiriman Push Notification via CORS Proxy
     async function kirimNotifikasi(judul, isi) {
       try {
-        await fetch("https://onesignal.com/api/v1/notifications", {
+        await fetch("https://corsproxy.io/?https://onesignal.com/api/v1/notifications", {
           method: "POST",
           headers: {
-            "Content-Type": "application/json; charset=utf-8",
+            "Content-Type": "application/json",
             "Authorization": "Key " + ONESIGNAL_REST_KEY
           },
           body: JSON.stringify({
