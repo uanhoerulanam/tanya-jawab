@@ -125,9 +125,6 @@
       measurementId: "G-MNJYKTS7MY"
     };
 
-    const ONESIGNAL_REST_KEY = "os_v2_app_nhytn5kybze5xbltqp532iez2ghnjmqzvsfesxe4srpxsy55v6tbgktkagft3n2qfi57ytpz4zdjxmzgawnzmzdjqhntw2453tk3ana"; 
-    const ONESIGNAL_APP_ID = "69f136f5-580e-49db-8573-83fbbd2099d1";
-
     const app = initializeApp(firebaseConfig);
     const db = getFirestore(app);
 
@@ -163,22 +160,15 @@
       }
     });
 
-    // Fungsi Pengiriman Push Notification via CORS Proxy
+    // Fungsi Pengiriman Notifikasi via Vercel Backend
     async function kirimNotifikasi(judul, isi) {
       try {
-        await fetch("https://corsproxy.io/?https://onesignal.com/api/v1/notifications", {
+        await fetch("/api/send-notif", {
           method: "POST",
           headers: {
-            "Content-Type": "application/json",
-            "Authorization": "Key " + ONESIGNAL_REST_KEY
+            "Content-Type": "application/json"
           },
-          body: JSON.stringify({
-            app_id: ONESIGNAL_APP_ID,
-            included_segments: ["Subscribed Users"],
-            headings: { "en": judul },
-            contents: { "en": isi },
-            url: window.location.href
-          })
+          body: JSON.stringify({ judul, isi })
         });
       } catch (err) {
         console.error("Gagal kirim notif:", err);
