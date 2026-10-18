@@ -13,9 +13,10 @@
     OneSignalDeferred.push(async function(OneSignal) {
       await OneSignal.init({
         appId: "69f136f5-580e-49db-8573-83fbbd2099d1",
+        notifyButton: {
+          enable: true,
+        },
       });
-      // Meminta izin notifikasi secara otomatis
-      OneSignal.Notifications.requestPermission();
     });
   </script>
 
@@ -124,6 +125,9 @@
       measurementId: "G-MNJYKTS7MY"
     };
 
+    const ONESIGNAL_REST_KEY = "os_v2_app_nhytn5kybze5xbltqp532iez2ghnjmqzvsfesxe4srpxsy55v6tbgktkagft3n2qfi57ytpz4zdjxmzgawnzmzdjqhntw2453tk3ana"; 
+    const ONESIGNAL_APP_ID = "69f136f5-580e-49db-8573-83fbbd2099d1";
+
     const app = initializeApp(firebaseConfig);
     const db = getFirestore(app);
 
@@ -159,6 +163,27 @@
       }
     });
 
+    // Fungsi Kirim Push Notification
+    async function kirimNotifikasi(judul, isi) {
+      try {
+        await fetch("https://onesignal.com/api/v1/notifications", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json; charset=utf-8",
+            "Authorization": "Key " + ONESIGNAL_REST_KEY
+          },
+          body: JSON.stringify({
+            app_id: ONESIGNAL_APP_ID,
+            included_segments: ["Subscribed Users"],
+            headings: { "en": judul },
+            contents: { "en": isi }
+          })
+        });
+      } catch (err) {
+        console.error("Notif Error:", err);
+      }
+    }
+
     form.addEventListener('submit', async (e) => {
       e.preventDefault();
       const nama = namaInput.value.trim() || "Anonim";
@@ -167,7 +192,6 @@
       if (!pesan) return;
 
       try {
-        // 1. Simpan pesan ke Firestore Database
         await addDoc(collection(db, "pesan_masuk"), {
           nama: nama,
           pesan: pesan,
@@ -175,25 +199,14 @@
           createdAt: serverTimestamp()
         });
 
-        // 2. Memicu pengiriman push notification via OneSignal API
-        fetch("https://onesignal.com/api/v1/notifications", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json; charset=utf-8"
-          },
-          body: JSON.stringify({
-            app_id: "69f136f5-580e-49db-8573-83fbbd2099d1",
-            included_segments: ["All"],
-            headings: { "en": "📩 Pesan Baru di Ruang Dengar!" },
-            contents: { "en": `${nama}: ${pesan}` }
-          })
-        }).catch(err => console.log("Gagal memicu notifikasi:", err));
+        // Pemicu Notifikasi
+        kirimNotifikasi("📩 Pesan Baru di Ruang Dengar!", `${nama}: ${pesan}`);
 
         pesanInput.value = '';
         alert("Pesan berhasil terkirim!");
       } catch (err) {
         console.error("Gagal mengirim pesan:", err);
-        alert("Gagal mengirim pesan. Coba cek koneksi internetmu.");
+        alert("Gagal mengirim pesan.");
       }
     });
 
@@ -244,7 +257,7 @@
         if (isAdmin) {
           html += `
             <div class="mt-3 pt-2 border-t border-gray-800 flex justify-end gap-2 text-xs">
-              <button onclick="balasPesan('${id}', '${escapeJs(data.balasan || '')}')" class="bg-blue-600/80 hover:bg-blue-600 text-white px-2.5 py-1 rounded-md">
+              <button onclick="balasPesan('${id}', '${escapeJs(data.balasan || '')}', '${escapeJs(data.nama)}')" class="bg-blue-600/80 hover:bg-blue-600 text-white px-2.5 py-1 rounded-md">
                 ${data.balasan ? 'Edit Balasan' : '💬 Balas'}
               </button>
               <button onclick="hapusPesan('${id}')" class="bg-red-600/80 hover:bg-red-600 text-white px-2.5 py-1 rounded-md">
@@ -259,13 +272,16 @@
       });
     }
 
-    window.balasPesan = async (id, balasanLama) => {
+    window.balasPesan = async (id, balasanLama, namaPengirim) => {
       const balasanBaru = prompt("Masukkan jawaban/balasan kamu:", balasanLama);
       if (balasanBaru !== null) {
         try {
           await updateDoc(doc(db, "pesan_masuk", id), {
             balasan: balasanBaru.trim()
           });
+
+          // Notifikasi saat Admin membalas pesan
+          kirimNotifikasi("👑 Admin Membalas Pesan!", `Balasan untuk ${namaPengirim}: ${balasanBaru.trim()}`);
         } catch (err) {
           alert("Gagal menyimpan balasan.");
         }
