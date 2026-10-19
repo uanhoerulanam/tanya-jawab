@@ -44,7 +44,6 @@
         <div id="adminIdBox" class="hidden text-xs text-green-400 bg-gray-900 p-2 rounded border border-green-900/50 flex items-center gap-2">
           <span>ID HP: <span id="adminPlayerId" class="font-bold select-all text-white">Mencari ID...</span></span>
           <button onclick="copyAdminId()" class="bg-green-700 px-2 py-1 rounded hover:bg-green-600">Copy</button>
-          <button onclick="mintaIzinNotif()" class="bg-blue-600 px-2 py-1 rounded hover:bg-blue-500">Minta Izin</button>
         </div>
       </div>
 
@@ -127,7 +126,7 @@
     let isAdmin = false;
     const ADMIN_PIN = "1234";
     
-    // ⚠️ MASUKKAN ID KAMU DI SINI NANTI
+    // ID ADMIN SUDAH DIMASUKKAN
     let ADMIN_ONESIGNAL_ID = "a2ad4780-ff97-40fd-8661-b1a1bba079fb"; 
 
     const form = document.getElementById('pesanForm');
@@ -142,7 +141,6 @@
     let myPlayerId = null;
     let oneSignalInstance = null;
 
-    // Fungsi Paksa Minta Izin
     window.mintaIzinNotif = async function() {
       if (oneSignalInstance) {
         await oneSignalInstance.Notifications.requestPermission();
@@ -150,7 +148,6 @@
       }
     }
 
-    // Fungsi Cek ID Berulang kali (Karena OneSignal butuh waktu membuat ID)
     function cekIdBerkala() {
       let attempts = 0;
       const interval = setInterval(() => {
@@ -160,7 +157,7 @@
           clearInterval(interval);
         }
         attempts++;
-        if (attempts > 15) clearInterval(interval); // Berhenti setelah 15 detik
+        if (attempts > 15) clearInterval(interval);
       }, 1000);
     }
 
@@ -171,19 +168,15 @@
           adminPlayerIdSpan.classList.remove('text-gray-400');
           adminPlayerIdSpan.classList.add('text-green-400');
         } else {
-          adminPlayerIdSpan.innerText = "Gagal dapat ID. Cek Izin Browser!";
+          adminPlayerIdSpan.innerText = "Klik 'Allow' Notif";
         }
       }
     }
 
-    // Inisialisasi OneSignal
     window.OneSignalDeferred.push(async function(OneSignal) {
       oneSignalInstance = OneSignal;
       await OneSignal.init({ appId: "69f136f5-580e-49db-8573-83fbbd2099d1" });
-      
-      // Cek berkala saat halaman dibuka
       cekIdBerkala();
-
       OneSignal.User.PushSubscription.addEventListener("change", (event) => {
         myPlayerId = event.current.id;
         updateAdminIdUI();
@@ -193,9 +186,9 @@
     window.copyAdminId = function() {
       if(myPlayerId) {
         navigator.clipboard.writeText(myPlayerId);
-        alert("ID berhasil di-copy! Paste ke variabel ADMIN_ONESIGNAL_ID di kode index.html.");
+        alert("ID berhasil di-copy!");
       } else {
-        alert("ID belum didapat. Pastikan Anda sudah mengklik tombol 'Minta Izin' dan memilih 'Allow'.");
+        alert("ID belum didapat. Pastikan Anda sudah klik Allow.");
       }
     }
 
@@ -209,7 +202,7 @@
           adminStatus.classList.remove('hidden');
           adminIdBox.classList.remove('hidden');
           updateAdminIdUI();
-          cekIdBerkala(); // Paksa cari ID lagi kalau belum dapat
+          renderFeed(); 
         } else if (pin !== null) {
           alert("PIN Salah!");
         }
@@ -228,7 +221,7 @@
       
       if (!myPlayerId) {
         await mintaIzinNotif();
-        alert("Sistem sedang meminta izin notifikasi. Jika Anda sudah klik 'Allow', tunggu 3 detik lalu klik Kirim lagi.");
+        alert("Sistem meminta izin notifikasi. Jika sudah klik 'Allow', tunggu 3 detik lalu klik Kirim lagi.");
         return;
       }
 
@@ -255,7 +248,7 @@
           body: JSON.stringify({ 
             judul: "📩 Pesan Baru!", 
             isi: `${nama}: ${pesan}`,
-            targetId: ADMIN_ONESIGNAL_ID ? ADMIN_ONESIGNAL_ID : null 
+            targetId: ADMIN_ONESIGNAL_ID 
           })
         });
 
@@ -314,10 +307,16 @@
           `;
         }
 
+        // TOMBOL BALAS MUNCUL KARENA MODE ADMIN
         if (isAdmin) {
+          const safeBalasan = encodeURIComponent(data.balasan || '');
+          const safeNama = encodeURIComponent(data.nama);
+          const safePesan = encodeURIComponent(data.pesan);
+          const safeIdPenerima = data.playerId || '';
+
           html += `
             <div class="mt-3 pt-2 border-t border-gray-800 flex justify-end gap-2 text-xs">
-              <button onclick="balasPesan('${id}', '${escapeJs(data.balasan || '')}', '${escapeJs(data.nama)}', '${escapeJs(data.playerId || '')}', '${escapeJs(data.pesan)}')" class="bg-blue-600/80 hover:bg-blue-600 text-white px-2.5 py-1 rounded-md">
+              <button onclick="balasPesan('${id}', '${safeBalasan}', '${safeNama}', '${safeIdPenerima}', '${safePesan}')" class="bg-blue-600/80 hover:bg-blue-600 text-white px-2.5 py-1 rounded-md">
                 ${data.balasan ? 'Edit Balasan' : '💬 Balas'}
               </button>
               <button onclick="hapusPesan('${id}')" class="bg-red-600/80 hover:bg-red-600 text-white px-2.5 py-1 rounded-md">
@@ -332,34 +331,43 @@
       });
     }
 
-    window.balasPesan = async (id, balasanLama, namaPengirim, idPenerima, pesanAsli) => {
+    // FUNGSI BALAS YANG SUDAH TIDAK AKAN ERROR LAGI
+    window.balasPesan = async (id, safeBalasan, safeNama, idPenerima, safePesan) => {
+      const balasanLama = decodeURIComponent(safeBalasan);
+      const namaPengirim = decodeURIComponent(safeNama);
+      const pesanAsli = decodeURIComponent(safePesan);
+
       const balasanBaru = prompt("Masukkan jawaban/balasan kamu:", balasanLama);
+      
       if (balasanBaru !== null && balasanBaru.trim() !== "") {
         try {
+          // 1. Simpan ke database terlebih dahulu
           await updateDoc(doc(db, "pesan_masuk", id), {
             balasan: balasanBaru.trim()
           });
-
-          if (idPenerima && idPenerima !== "undefined" && idPenerima !== "") {
-            const btn = event.target;
-            btn.innerText = "Mengirim...";
-            btn.disabled = true;
-
-            await fetch("/api/send-notif", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({
-                judul: "👑 Admin Membalas Pesanmu!",
-                isi: balasanBaru.trim(),
-                targetId: idPenerima 
-              })
-            });
-            alert("Balasan terkirim ke HP user!");
-          } else {
-            alert("Balasan tersimpan. (User tidak mengizinkan notifikasi).");
+          
+          // 2. Kirim Notifikasi (Jika gagal, jangan munculkan error "Gagal Simpan")
+          try {
+            if (idPenerima && idPenerima !== "undefined" && idPenerima !== "") {
+              await fetch("/api/send-notif", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                  judul: "👑 Admin Membalas Pesanmu!",
+                  isi: balasanBaru.trim(),
+                  targetId: idPenerima 
+                })
+              });
+            }
+          } catch (notifError) {
+            console.error("Notif gagal terkirim, tapi data tersimpan:", notifError);
           }
+
+          alert("Balasan berhasil disimpan!");
+          
         } catch (err) {
-          alert("Gagal menyimpan balasan.");
+          console.error("Eror Database Firebase:", err);
+          alert("Gagal menyimpan balasan ke database. Cek aturan Firebase.");
         }
       }
     };
@@ -372,9 +380,6 @@
 
     function escapeHtml(text) {
       return text ? text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;") : '';
-    }
-    function escapeJs(text) {
-      return text ? text.replace(/'/g, "\\'") : '';
     }
   </script>
 </body>
