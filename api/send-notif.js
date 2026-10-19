@@ -16,7 +16,8 @@ module.exports = async (req, res) => {
   const isi = body.isi || "Ada pesan baru di Ruang Dengar.";
 
   try {
-    const response = await fetch("https://onesignal.com/api/v1/notifications", {
+    // Menggunakan endpoint API OneSignal terbaru
+    const response = await fetch("https://api.onesignal.com/notifications", {
       method: "POST",
       headers: {
         "Content-Type": "application/json; charset=utf-8",
@@ -24,17 +25,23 @@ module.exports = async (req, res) => {
       },
       body: JSON.stringify({
         app_id: "69f136f5-580e-49db-8573-83fbbd2099d1",
-        included_segments: ["Subscribed Users"],
+        included_segments: ["All"], // Diubah ke "All" agar menembak semua perangkat
         headings: { "en": judul },
         contents: { "en": isi },
-        // URL SUDAH DIGANTI KE YANG BARU
-        url: "https://maungomongapasibyuan.vercel.app" 
+        url: "https://maungomongapasibyuan.vercel.app"
       })
     });
 
     const data = await response.json();
-    return res.status(200).json(data);
+    
+    // Ini akan memunculkan log error asli dari OneSignal di Vercel jika ada
+    console.log("Balasan OneSignal:", data); 
+
+    // Mengembalikan status asli dari OneSignal (bukan selalu 200)
+    return res.status(response.status).json(data);
+    
   } catch (error) {
+    console.error("Error sistem:", error);
     return res.status(500).json({ error: error.message });
   }
 };
