@@ -14,19 +14,21 @@ module.exports = async (req, res) => {
 
   const judul = body.judul || "Pesan Baru!";
   const isi = body.isi || "Ada pesan baru di Ruang Dengar.";
+  const targetId = body.targetId; // ID OneSignal user yang akan dikirim notif
 
   try {
-    // 1. Gunakan endpoint terbaru: api.onesignal.com
+    // Gunakan endpoint terbaru api.onesignal.com
     const response = await fetch("https://api.onesignal.com/notifications", {
       method: "POST",
       headers: {
         "Content-Type": "application/json; charset=utf-8",
-        // 2. Pastikan ada spasi setelah kata 'Key'
         "Authorization": "Key os_v2_app_nhytn5kybze5xbltqp532iez2ghnjmqzvsfesxe4srpxsy55v6tbgktkagft3n2qfi57ytpz4zdjxmzgawnzmzdjqhntw2453tk3ana"
       },
       body: JSON.stringify({
         app_id: "69f136f5-580e-49db-8573-83fbbd2099d1",
-        included_segments: ["All"],
+        // Jika ada targetId, kirim ke 1 orang. Jika tidak, kirim ke semua (Admin)
+        include_subscription_ids: targetId ? [targetId] : undefined,
+        included_segments: targetId ? undefined : ["All"], 
         headings: { "en": judul },
         contents: { "en": isi },
         url: "https://maungomongapasibyuan.vercel.app"
@@ -35,12 +37,8 @@ module.exports = async (req, res) => {
 
     const data = await response.json();
     console.log("Balasan OneSignal:", data);
-
-    // 3. Kembalikan status asli dari OneSignal
     return res.status(response.status).json(data);
-    
   } catch (error) {
-    console.error("Error sistem:", error);
     return res.status(500).json({ error: error.message });
   }
 };
