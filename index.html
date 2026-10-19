@@ -35,15 +35,16 @@
   <div class="max-w-xl mx-auto w-full my-6">
     
     <div class="text-center mb-8 relative">
-      <div class="flex justify-between items-center mb-2">
-        <button id="btnToggleAdmin" class="text-xs bg-gray-800/80 hover:bg-gray-700 text-purple-400 px-3 py-1.5 rounded-full border border-purple-500/30 transition-all">
+      <div class="flex flex-col items-center mb-2">
+        <button id="btnToggleAdmin" class="text-xs bg-gray-800/80 hover:bg-gray-700 text-purple-400 px-3 py-1.5 rounded-full border border-purple-500/30 transition-all mb-2">
           🔒 Mode Admin
         </button>
         
         <!-- Kotak ID Admin -->
-        <div id="adminIdBox" class="hidden text-xs text-green-400 bg-gray-900 p-1.5 rounded border border-green-900/50">
-          ID HP: <span id="adminPlayerId" class="font-bold select-all">Memuat...</span>
-          <button onclick="copyAdminId()" class="ml-1 bg-green-800 px-1.5 rounded hover:bg-green-700">Copy</button>
+        <div id="adminIdBox" class="hidden text-xs text-green-400 bg-gray-900 p-2 rounded border border-green-900/50 flex items-center gap-2">
+          <span>ID HP: <span id="adminPlayerId" class="font-bold select-all text-white">Mencari ID...</span></span>
+          <button onclick="copyAdminId()" class="bg-green-700 px-2 py-1 rounded hover:bg-green-600">Copy</button>
+          <button onclick="mintaIzinNotif()" class="bg-blue-600 px-2 py-1 rounded hover:bg-blue-500">Minta Izin</button>
         </div>
       </div>
 
@@ -58,7 +59,6 @@
         ankraixmotion
       </h1>
       <p class="text-purple-300 text-sm font-medium mt-1">Ruang Dengar & Tempat Request</p>
-      <p class="text-gray-400 text-xs mt-1">Pastikan kamu mengizinkan notifikasi agar bisa menerima balasan.</p>
     </div>
 
     <!-- Container Form -->
@@ -127,7 +127,7 @@
     let isAdmin = false;
     const ADMIN_PIN = "1234";
     
-    // ⚠️ NANTI MASUKKAN ID KAMU DI SINI SETELAH MENDAPATKANNYA
+    // ⚠️ MASUKKAN ID KAMU DI SINI NANTI
     let ADMIN_ONESIGNAL_ID = ""; 
 
     const form = document.getElementById('pesanForm');
@@ -142,13 +142,36 @@
     let myPlayerId = null;
     let oneSignalInstance = null;
 
-    // Fungsi untuk update tampilan ID
+    // Fungsi Paksa Minta Izin
+    window.mintaIzinNotif = async function() {
+      if (oneSignalInstance) {
+        await oneSignalInstance.Notifications.requestPermission();
+        cekIdBerkala();
+      }
+    }
+
+    // Fungsi Cek ID Berulang kali (Karena OneSignal butuh waktu membuat ID)
+    function cekIdBerkala() {
+      let attempts = 0;
+      const interval = setInterval(() => {
+        if (oneSignalInstance && oneSignalInstance.User.PushSubscription.id) {
+          myPlayerId = oneSignalInstance.User.PushSubscription.id;
+          updateAdminIdUI();
+          clearInterval(interval);
+        }
+        attempts++;
+        if (attempts > 15) clearInterval(interval); // Berhenti setelah 15 detik
+      }, 1000);
+    }
+
     function updateAdminIdUI() {
       if (isAdmin && adminPlayerIdSpan) {
         if (myPlayerId) {
           adminPlayerIdSpan.innerText = myPlayerId;
+          adminPlayerIdSpan.classList.remove('text-gray-400');
+          adminPlayerIdSpan.classList.add('text-green-400');
         } else {
-          adminPlayerIdSpan.innerText = "Klik 'Allow' notif dulu!";
+          adminPlayerIdSpan.innerText = "Gagal dapat ID. Cek Izin Browser!";
         }
       }
     }
@@ -158,22 +181,21 @@
       oneSignalInstance = OneSignal;
       await OneSignal.init({ appId: "69f136f5-580e-49db-8573-83fbbd2099d1" });
       
-      // Ambil ID saat ini (kalau sudah ada)
-      myPlayerId = OneSignal.User.PushSubscription.id;
-      updateAdminIdUI();
+      // Cek berkala saat halaman dibuka
+      cekIdBerkala();
 
-      // Pantau kalau user baru klik Allow
       OneSignal.User.PushSubscription.addEventListener("change", (event) => {
         myPlayerId = event.current.id;
         updateAdminIdUI();
       });
     });
 
-    // Tombol Copy ID Admin
     window.copyAdminId = function() {
       if(myPlayerId) {
         navigator.clipboard.writeText(myPlayerId);
         alert("ID berhasil di-copy! Paste ke variabel ADMIN_ONESIGNAL_ID di kode index.html.");
+      } else {
+        alert("ID belum didapat. Pastikan Anda sudah mengklik tombol 'Minta Izin' dan memilih 'Allow'.");
       }
     }
 
@@ -183,19 +205,18 @@
         if (pin === ADMIN_PIN) {
           isAdmin = true;
           btnToggleAdmin.innerText = "🔓 Keluar Mode Admin";
-          btnToggleAdmin.className = "text-xs bg-purple-600 text-white px-3 py-1.5 rounded-full shadow-lg";
+          btnToggleAdmin.className = "text-xs bg-purple-600 text-white px-3 py-1.5 rounded-full shadow-lg mb-2";
           adminStatus.classList.remove('hidden');
           adminIdBox.classList.remove('hidden');
           updateAdminIdUI();
-          alert("Mode Admin Aktif!");
-          renderFeed();
+          cekIdBerkala(); // Paksa cari ID lagi kalau belum dapat
         } else if (pin !== null) {
           alert("PIN Salah!");
         }
       } else {
         isAdmin = false;
         btnToggleAdmin.innerText = "🔒 Mode Admin";
-        btnToggleAdmin.className = "text-xs bg-gray-800/80 hover:bg-gray-700 text-purple-400 px-3 py-1.5 rounded-full border border-purple-500/30 transition-all";
+        btnToggleAdmin.className = "text-xs bg-gray-800/80 hover:bg-gray-700 text-purple-400 px-3 py-1.5 rounded-full border border-purple-500/30 transition-all mb-2";
         adminStatus.classList.add('hidden');
         adminIdBox.classList.add('hidden');
         renderFeed();
@@ -205,17 +226,9 @@
     form.addEventListener('submit', async (e) => {
       e.preventDefault();
       
-      // Jika ID belum ada (belum klik Allow), paksa minta izin
-      if (!myPlayerId && oneSignalInstance) {
-        await oneSignalInstance.Notifications.requestPermission();
-        setTimeout(() => {
-            myPlayerId = oneSignalInstance.User.PushSubscription.id;
-            updateAdminIdUI();
-        }, 2000); // Tunggu 2 detik agar ID terbentuk
-      }
-
       if (!myPlayerId) {
-        alert("Harap izinkan notifikasi di browser Anda terlebih dahulu (Klik Allow) agar bisa menerima balasan.");
+        await mintaIzinNotif();
+        alert("Sistem sedang meminta izin notifikasi. Jika Anda sudah klik 'Allow', tunggu 3 detik lalu klik Kirim lagi.");
         return;
       }
 
@@ -236,7 +249,6 @@
           createdAt: serverTimestamp()
         });
 
-        // Kirim notif ke HP Admin
         await fetch("/api/send-notif", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -248,7 +260,7 @@
         });
 
         pesanInput.value = '';
-        alert("Pesan terkirim! Anda akan menerima notifikasi saat admin membalas.");
+        alert("Pesan terkirim!");
       } catch (err) {
         alert("Gagal mengirim pesan.");
       } finally {
