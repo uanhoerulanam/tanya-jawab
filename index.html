@@ -6,16 +6,15 @@
   <title>ankraixmotion | Ruang Dengar</title>
   <script src="https://cdn.tailwindcss.com"></script>
 
-  <!-- OneSignal Push Notification SDK -->
+  <!-- OneSignal SDK v16 -->
   <script src="https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.page.js" defer></script>
   <script>
     window.OneSignalDeferred = window.OneSignalDeferred || [];
     OneSignalDeferred.push(async function(OneSignal) {
       await OneSignal.init({
         appId: "69f136f5-580e-49db-8573-83fbbd2099d1",
-        notifyButton: {
-          enable: true,
-        },
+        allowLocalhostAsSecureOrigin: true,
+        notifyButton: { enable: false }, // Kita sembunyikan tombol bawaan
       });
     });
   </script>
@@ -27,28 +26,27 @@
         radial-gradient(circle at 15% 20%, rgba(59, 130, 246, 0.15) 0%, transparent 45%),
         radial-gradient(circle at 85% 80%, rgba(168, 85, 247, 0.15) 0%, transparent 45%);
     }
-    .glow-box {
-      box-shadow: 0 0 25px rgba(139, 92, 246, 0.2);
-    }
-    .glow-text {
-      text-shadow: 0 0 12px rgba(168, 85, 247, 0.6);
-    }
+    .glow-box { box-shadow: 0 0 25px rgba(139, 92, 246, 0.2); }
+    .glow-text { text-shadow: 0 0 12px rgba(168, 85, 247, 0.6); }
   </style>
 </head>
 <body class="text-gray-200 min-h-screen p-4 flex flex-col justify-between">
 
   <div class="max-w-xl mx-auto w-full my-6">
     
-    <!-- Header Branding ankraixmotion -->
     <div class="text-center mb-8 relative">
-      <div class="flex justify-end mb-2">
+      <div class="flex justify-between items-center mb-2">
+        <!-- Tombol Toggle Admin -->
         <button id="btnToggleAdmin" class="text-xs bg-gray-800/80 hover:bg-gray-700 text-purple-400 px-3 py-1.5 rounded-full border border-purple-500/30 transition-all">
           🔒 Mode Admin
         </button>
+        <!-- Info ID Admin (Hanya muncul saat klik mode admin, untuk di-copy) -->
+        <div id="adminIdBox" class="hidden text-xs text-green-400 bg-gray-900 p-1 rounded">
+          ID HP Admin: <span id="adminPlayerId">Memuat...</span>
+        </div>
       </div>
 
-      <!-- Wadah Logo -->
-      <div class="relative inline-block">
+      <div class="relative inline-block mt-4">
         <div class="absolute -inset-1 bg-gradient-to-r from-blue-600 to-purple-600 rounded-2xl blur opacity-75 animate-pulse"></div>
         <img id="logoImg" src="logo.png" alt="ankraixmotion" 
              class="relative w-24 h-24 object-cover rounded-2xl border-2 border-purple-400 mx-auto bg-gray-900 shadow-2xl"
@@ -59,13 +57,11 @@
         ankraixmotion
       </h1>
       <p class="text-purple-300 text-sm font-medium mt-1">Ruang Dengar & Tempat Request</p>
-      <p class="text-gray-400 text-xs mt-1">Ceritakan masalahmu, ajukan pertanyaan, atau sampaikan masukan secara bebas.</p>
+      <p class="text-gray-400 text-xs mt-1">Pastikan kamu mengizinkan notifikasi agar bisa menerima balasan.</p>
     </div>
 
-    <!-- Container Utama -->
+    <!-- Container Form -->
     <div class="bg-gray-900/90 border border-purple-500/30 rounded-2xl p-6 backdrop-blur-md glow-box mb-8">
-      
-      <!-- Form Pengiriman Pesan -->
       <form id="pesanForm" class="space-y-4">
         <div>
           <label class="block text-xs font-semibold text-blue-400 uppercase tracking-wider mb-1">Nama / Inisial</label>
@@ -104,7 +100,6 @@
 
   </div>
 
-  <!-- Footer -->
   <footer class="text-center text-xs text-gray-600 py-4">
     &copy; ankraixmotion — All Rights Reserved.
   </footer>
@@ -130,6 +125,10 @@
 
     let isAdmin = false;
     const ADMIN_PIN = "1234";
+    
+    // ⚠️ GANTI DENGAN ID ONESIGNAL HP KAMU (Cara ambilnya ada di bawah)
+    // Biarkan kosong dulu jika belum tahu.
+    let ADMIN_ONESIGNAL_ID = ""; 
 
     const form = document.getElementById('pesanForm');
     const namaInput = document.getElementById('namaInput');
@@ -137,8 +136,29 @@
     const daftarPesan = document.getElementById('daftarPesan');
     const btnToggleAdmin = document.getElementById('btnToggleAdmin');
     const adminStatus = document.getElementById('adminStatus');
+    const adminIdBox = document.getElementById('adminIdBox');
+    const adminPlayerIdSpan = document.getElementById('adminPlayerId');
 
-    btnToggleAdmin.addEventListener('click', () => {
+    let myPlayerId = null;
+
+    // Ambil ID HP user dari OneSignal
+    window.OneSignalDeferred.push(async function(OneSignal) {
+      await OneSignal.init({ appId: "69f136f5-580e-49db-8573-83fbbd2099d1" });
+      
+      OneSignal.User.PushSubscription.addEventListener("change", (event) => {
+        myPlayerId = event.current.id;
+      });
+      
+      // Coba ambil ID langsung jika sudah login
+      myPlayerId = OneSignal.User.PushSubscription.id;
+      
+      // Tampilkan ID di layar jika sedang mode admin
+      if(myPlayerId && isAdmin) {
+        adminPlayerIdSpan.innerText = myPlayerId;
+      }
+    });
+
+    btnToggleAdmin.addEventListener('click', async () => {
       if (!isAdmin) {
         const pin = prompt("Masukkan PIN Admin:");
         if (pin === ADMIN_PIN) {
@@ -146,7 +166,9 @@
           btnToggleAdmin.innerText = "🔓 Keluar Mode Admin";
           btnToggleAdmin.className = "text-xs bg-purple-600 text-white px-3 py-1.5 rounded-full shadow-lg";
           adminStatus.classList.remove('hidden');
-          alert("Mode Admin Aktif! Kamu sekarang bisa membalas dan menghapus pesan.");
+          adminIdBox.classList.remove('hidden');
+          if(myPlayerId) adminPlayerIdSpan.innerText = myPlayerId;
+          alert("Mode Admin Aktif!");
           renderFeed();
         } else if (pin !== null) {
           alert("PIN Salah!");
@@ -156,44 +178,62 @@
         btnToggleAdmin.innerText = "🔒 Mode Admin";
         btnToggleAdmin.className = "text-xs bg-gray-800/80 hover:bg-gray-700 text-purple-400 px-3 py-1.5 rounded-full border border-purple-500/30 transition-all";
         adminStatus.classList.add('hidden');
+        adminIdBox.classList.add('hidden');
         renderFeed();
       }
     });
 
-    async function kirimNotifikasi(judul, isi) {
-      try {
-        await fetch("/api/send-notif", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ judul, isi })
-        });
-      } catch (err) {
-        console.error("Gagal kirim notif:", err);
-      }
-    }
-
     form.addEventListener('submit', async (e) => {
       e.preventDefault();
+      
+      if (!myPlayerId) {
+        alert("Harap izinkan notifikasi di browser Anda terlebih dahulu agar bisa menerima balasan.");
+        // Paksa minta izin
+        if (window.OneSignal) {
+          window.OneSignal.push(function() {
+            OneSignal.Notifications.requestPermission();
+          });
+        }
+        return;
+      }
+
       const nama = namaInput.value.trim() || "Anonim";
       const pesan = pesanInput.value.trim();
-
       if (!pesan) return;
 
+      const btn = document.getElementById('btnKirim');
+      btn.innerText = "Mengirim...";
+      btn.disabled = true;
+
       try {
+        // 1. Simpan pesan + ID OneSignal user ke database
         await addDoc(collection(db, "pesan_masuk"), {
           nama: nama,
           pesan: pesan,
+          playerId: myPlayerId, // <--- Simpan ID untuk dibalas nanti
           balasan: "",
           createdAt: serverTimestamp()
         });
 
-        kirimNotifikasi("📩 Pesan Baru di Ruang Dengar!", `${nama}: ${pesan}`);
+        // 2. Kirim notif ke HP Admin
+        // Jika ADMIN_ONESIGNAL_ID diisi, kirim ke situ. Jika kosong, kirim ke semua (termasuk admin).
+        await fetch("/api/send-notif", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ 
+            judul: "📩 Pesan Baru!", 
+            isi: `${nama}: ${pesan}`,
+            targetId: ADMIN_ONESIGNAL_ID ? ADMIN_ONESIGNAL_ID : null 
+          })
+        });
 
         pesanInput.value = '';
-        alert("Pesan berhasil terkirim!");
+        alert("Pesan terkirim! Anda akan menerima notifikasi saat admin membalas.");
       } catch (err) {
-        console.error("Gagal mengirim pesan:", err);
         alert("Gagal mengirim pesan.");
+      } finally {
+        btn.innerText = "🚀 Kirim Pesan";
+        btn.disabled = false;
       }
     });
 
@@ -217,14 +257,15 @@
       currentSnapshot.forEach((docSnap) => {
         const data = docSnap.data();
         const id = docSnap.id;
+        const isMyMessage = data.playerId === myPlayerId;
         
         const card = document.createElement('div');
-        card.className = 'bg-gray-900/60 border border-gray-800/80 rounded-xl p-4 transition-all hover:border-purple-500/40';
+        card.className = `bg-gray-900/60 border ${isMyMessage ? 'border-blue-500/50' : 'border-gray-800/80'} rounded-xl p-4 transition-all hover:border-purple-500/40`;
         
         let html = `
           <div class="flex justify-between items-start mb-2">
             <span class="font-bold text-sm bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">
-              ${escapeHtml(data.nama)}
+              ${escapeHtml(data.nama)} ${isMyMessage ? '(Anda)' : ''}
             </span>
           </div>
           <p class="text-gray-300 text-sm whitespace-pre-line leading-relaxed">${escapeHtml(data.pesan)}</p>
@@ -234,7 +275,7 @@
           html += `
             <div class="mt-3 pt-3 border-t border-purple-500/20 bg-purple-950/20 -mx-4 -mb-4 p-3 rounded-b-xl">
               <div class="flex items-center gap-1.5 text-xs font-semibold text-purple-400 mb-1">
-                <span>👑</span> Balasan Admin (ankraixmotion):
+                <span>👑</span> Balasan Admin:
               </div>
               <p class="text-purple-200 text-sm whitespace-pre-line">${escapeHtml(data.balasan)}</p>
             </div>
@@ -244,7 +285,7 @@
         if (isAdmin) {
           html += `
             <div class="mt-3 pt-2 border-t border-gray-800 flex justify-end gap-2 text-xs">
-              <button onclick="balasPesan('${id}', '${escapeJs(data.balasan || '')}', '${escapeJs(data.nama)}')" class="bg-blue-600/80 hover:bg-blue-600 text-white px-2.5 py-1 rounded-md">
+              <button onclick="balasPesan('${id}', '${escapeJs(data.balasan || '')}', '${escapeJs(data.nama)}', '${escapeJs(data.playerId || '')}', '${escapeJs(data.pesan)}')" class="bg-blue-600/80 hover:bg-blue-600 text-white px-2.5 py-1 rounded-md">
                 ${data.balasan ? 'Edit Balasan' : '💬 Balas'}
               </button>
               <button onclick="hapusPesan('${id}')" class="bg-red-600/80 hover:bg-red-600 text-white px-2.5 py-1 rounded-md">
@@ -259,15 +300,33 @@
       });
     }
 
-    window.balasPesan = async (id, balasanLama, namaPengirim) => {
+    window.balasPesan = async (id, balasanLama, namaPengirim, idPenerima, pesanAsli) => {
       const balasanBaru = prompt("Masukkan jawaban/balasan kamu:", balasanLama);
-      if (balasanBaru !== null) {
+      if (balasanBaru !== null && balasanBaru.trim() !== "") {
         try {
           await updateDoc(doc(db, "pesan_masuk", id), {
             balasan: balasanBaru.trim()
           });
 
-          kirimNotifikasi("👑 Admin Membalas Pesan!", `Balasan untuk ${namaPengirim}: ${balasanBaru.trim()}`);
+          // Kirim notifikasi langsung ke HP User yang bertanya
+          if (idPenerima && idPenerima !== "undefined" && idPenerima !== "") {
+            const btn = event.target;
+            btn.innerText = "Mengirim...";
+            btn.disabled = true;
+
+            await fetch("/api/send-notif", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                judul: "👑 Admin Membalas Pesanmu!",
+                isi: balasanBaru.trim(),
+                targetId: idPenerima // Tembak ID HP User tersebut
+              })
+            });
+            alert("Balasan terkirim ke HP user!");
+          } else {
+            alert("Balasan tersimpan. (User tidak mengizinkan notifikasi, jadi tidak dapat notif).");
+          }
         } catch (err) {
           alert("Gagal menyimpan balasan.");
         }
@@ -276,11 +335,7 @@
 
     window.hapusPesan = async (id) => {
       if (confirm("Yakin ingin menghapus pesan ini?")) {
-        try {
-          await deleteDoc(doc(db, "pesan_masuk", id));
-        } catch (err) {
-          alert("Gagal menghapus pesan.");
-        }
+        try { await deleteDoc(doc(db, "pesan_masuk", id)); } catch (err) { alert("Gagal menghapus."); }
       }
     };
 
